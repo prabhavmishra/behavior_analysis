@@ -5,8 +5,7 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
-# --- STEP 1: LOAD & CLEAN DATA ---
-# Load original datasets (ensure these files are in the same folder)
+# STEP 1: LOAD & CLEAN DATA 
 sentiment_df = pd.read_csv('csvs/fear_greed_index.csv')
 trades_df = pd.read_csv('csvs/historical_data.csv')
 
@@ -17,7 +16,7 @@ trades_df['date'] = pd.to_datetime(trades_df['Timestamp IST'], dayfirst=True).dt
 # Align datasets: Attach market sentiment to every individual trade execution
 merged_df = pd.merge(trades_df, sentiment_df[['date', 'value', 'classification']], on='date', how='left')
 
-# --- STEP 2: FEATURE ENGINEERING ---
+# STEP 2: FEATURE ENGINEERING
 # Define Win/Loss and directional bias flags
 merged_df['is_win'] = (merged_df['Closed PnL'] > 0).astype(int)
 merged_df['is_long'] = (merged_df['Side'].str.upper() == 'BUY').astype(int)
@@ -38,7 +37,7 @@ daily_metrics = merged_df.groupby(['Account', 'date', 'classification']).agg(
 daily_metrics['win_rate'] = daily_metrics['wins'] / daily_metrics['trade_count']
 daily_metrics['ls_ratio'] = daily_metrics['long_count'] / (daily_metrics['short_count'] + 1e-9)
 
-# --- STEP 3: SEGMENTATION ---
+# STEP 3: SEGMENTATION 
 # Segment traders into 'Frequent' and 'Infrequent' based on median activity
 user_activity = daily_metrics.groupby('Account')['trade_count'].sum().reset_index()
 user_activity['segment'] = pd.qcut(user_activity['trade_count'], 2, labels=['Infrequent', 'Frequent'])
@@ -50,7 +49,7 @@ daily_metrics = pd.merge(daily_metrics, user_activity[['Account', 'segment']], o
 sentiment_order = ['Extreme Fear', 'Fear', 'Neutral', 'Greed', 'Extreme Greed']
 daily_metrics['classification'] = pd.Categorical(daily_metrics['classification'], categories=sentiment_order, ordered=True)
 
-# --- STEP 4: GENERATE IMAGES ---
+# STEP 4: GENERATE IMAGES
 sns.set(style="whitegrid")
 
 # 1. Win Rate Analysis
@@ -77,8 +76,7 @@ plt.title('Average Daily PnL by Trader Segment & Sentiment')
 plt.ylabel('Avg Daily PnL ($)')
 plt.savefig('segment_pnl_sentiment.png')
 
-# --- STEP 5: PREDICTIVE MODEL (Bonus) ---
-# Prepare features for the Profitability Predictor
+# STEP 5: PREDICTIVE MODEL (Bonus) 
 X = daily_metrics[['trade_count', 'avg_trade_size', 'ls_ratio']].dropna()
 y = (daily_metrics.loc[X.index, 'daily_pnl'] > 0).astype(int)
 
@@ -90,7 +88,7 @@ clf.fit(X_train, y_train)
 # Capture Feature Importance
 feat_imp = pd.DataFrame({'Feature': X.columns, 'Importance': clf.feature_importances_}).sort_values('Importance', ascending=False)
 
-# --- STEP 6: EXPORT FINAL CSVs ---
+# STEP 6: EXPORT FINAL CSVs
 merged_df.to_csv('processed_trades_sentiment.csv', index=False)
 daily_metrics.to_csv('trader_daily_performance.csv', index=False)
 user_activity.to_csv('trader_segments.csv', index=False)
